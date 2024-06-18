@@ -11,7 +11,6 @@ public:
 	open_handle_t open_handle;
 	focal_handle_t focal_handle;
 
-
 	AStarNode() : LLNode() {}
 
 	AStarNode(int loc, int g_val, int h_val, LLNode* parent, int timestep, int num_of_conflicts = 0, bool in_openlist = false) :
@@ -54,8 +53,9 @@ public:
 	// Returns a shortest path that satisfies the constraints of the give node  while
 	// minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 	// lowerbound is an underestimation of the length of the path in order to speed up the search.
-    Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent) override;
-
+//    Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent, const PathTable& path_table) override;
+   Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent, const vector<Path>& planned_paths) override;
+    // Path findOptimalPath(const PathTable& path_table) override;
 	string getName() const override { return "AStar"; }
 
 	SpaceTimeAStar(const Instance& instance, int agent):
@@ -80,5 +80,6 @@ private:
 	inline AStarNode* popNode();
 	inline void pushNode(AStarNode* node);
 	void releaseNodes();
+
 
 };

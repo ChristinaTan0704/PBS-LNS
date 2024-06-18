@@ -1,10 +1,17 @@
 #pragma once
 #include "PBSNode.h"
 #include "SingleAgentSolver.h"
+// #include "PathTable.h"
 
 class PBS
 {
 public:
+	vector<Path> planned_paths;
+    PathTable path_table; // 1. stores the paths of all agents in a time-space table;
+    string state_json = "";
+    vector<int> replan_agents; // used by randomwalk strategy
+    vector<int> agent_ori_id;
+    int init_replan_cost= 0;
 	/////////////////////////////////////////////////////////////////////////////////////
 	// stats
 	double runtime = 0;
@@ -14,6 +21,7 @@ public:
 	double runtime_path_finding = 0; // runtime of finding paths for single agents
 	double runtime_detect_conflicts = 0;
 	double runtime_preprocessing = 0; // runtime of building heuristic table for the low level
+
 
 	uint64_t num_HL_expanded = 0;
 	uint64_t num_HL_generated = 0;
@@ -26,7 +34,9 @@ public:
 
 
 	bool solution_found = false;
-	int solution_cost = -2;
+	int solution_cost = -1;
+
+
 
 	/////////////////////////////////////////////////////////////////////////////////////////
 	// set params
@@ -47,6 +57,7 @@ public:
     void savePaths(const string &fileName) const; // write the paths to a file
 	void clear(); // used for rapid random  restart
 private:
+    const Instance& instance; // avoid making copies of this variable as much as possible
 	conflict_selection conflict_seletion_rule;
 
     stack<PBSNode*> open_list;

@@ -1,13 +1,16 @@
 #pragma once
 #include "common.h"
 #include "PBSNode.h"
+// #include "PathTable.h"
 class ConstraintTable
 {
 public:
     int length_min = 0;
     int length_max = MAX_TIMESTEP;
+    // vector<Path*> planned_paths;
     size_t num_col;
     size_t map_size;
+//    const PathTable& path_table;
 
     int getHoldingTime(int location, int earliest_timestep) const; // the earliest timestep that the agent can hold the location after earliest_timestep
     int getMaxTimestep() const; // everything is static after the max timestep
@@ -21,8 +24,10 @@ public:
     bool hasEdgeConflict(size_t curr_id, size_t next_id, int next_timestep) const;
     int getFutureNumOfCollisions(int loc, int t) const;
 
-    ConstraintTable(size_t num_col, size_t map_size) : num_col(num_col), map_size(map_size) {}
-    ConstraintTable(const ConstraintTable& other) { copy(other); }
+   ConstraintTable(size_t num_col, size_t map_size) : num_col(num_col), map_size(map_size) {}
+//    ConstraintTable(const ConstraintTable& other) { copy(other); }
+    // ConstraintTable(const PathTable& path_table, size_t num_col, size_t map_size):path_table(path_table), num_col(num_col), map_size(map_size){}
+    // ConstraintTable(size_t num_col, size_t map_size):planned_paths(planned_paths), num_col(num_col), map_size(map_size){}
     ~ConstraintTable() = default;
 
     void copy(const ConstraintTable& other);

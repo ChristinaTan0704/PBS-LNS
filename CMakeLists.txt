@@ -1,5 +1,5 @@
 project(pbs)
-
+list(APPEND CMAKE_PREFIX_PATH "../json")
 cmake_minimum_required (VERSION 2.6)
 
 IF(NOT CMAKE_BUILD_TYPE)
@@ -14,5 +14,6 @@ add_executable(pbs ${SOURCES})
 
 # Find Boost
 find_package(Boost REQUIRED COMPONENTS program_options system filesystem)
+find_package(nlohmann_json REQUIRED)
 include_directories( ${Boost_INCLUDE_DIRS} )
-target_link_libraries(pbs ${Boost_LIBRARIES})
+target_link_libraries(pbs ${Boost_LIBRARIES} nlohmann_json::nlohmann_json)

@@ -2,23 +2,29 @@
 #include <random>      // std::default_random_engine
 #include <chrono>       // std::chrono::system_clock
 #include "PBS.h"
-#include "SIPP.h"
+//#include "SIPP.h"
 #include "SpaceTimeAStar.h"
+#include <nlohmann/json.hpp>
+using namespace std::chrono;
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::duration<float> fsec;
+typedef std::chrono::duration<float> fsec;
 
 
 PBS::PBS(const Instance& instance, bool sipp, int screen) :
         screen(screen),
-        num_of_agents(instance.getDefaultNumberOfAgents())
+        num_of_agents(instance.getDefaultNumberOfAgents()),
+        path_table(instance.map_size),
+        instance(instance)
 {
     clock_t t = clock();
-
     search_engines.resize(num_of_agents);
     for (int i = 0; i < num_of_agents; i++)
     {
-        if (sipp)
-            search_engines[i] = new SIPP(instance, i);
-        else
-            search_engines[i] = new SpaceTimeAStar(instance, i);
+//        if (sipp)
+//            search_engines[i] = new SIPP(instance, i);
+//        else
+        search_engines[i] = new SpaceTimeAStar(instance, i); // TODO update here to add contraint table to each instance
     }
     runtime_preprocessing = (double)(clock() - t) / CLOCKS_PER_SEC;
 
@@ -31,17 +37,65 @@ PBS::PBS(const Instance& instance, bool sipp, int screen) :
 
 bool PBS::solve(double _time_limit)
 {
+
+    // init constraint table with planned paths
+    auto start_time = Time::now();
+    if (state_json != ""){
+        using json = nlohmann::json;
+        std::ifstream f(state_json);
+        json data = json::parse(f);
+        init_replan_cost = 0;
+        planned_paths.reserve(data.size() - replan_agents.size());
+//        cout << "Initial State Start" << endl; // NOTE can be del
+        int agent_id = replan_agents.size();
+        for (auto & [key, value] : data.items()){
+            Path path;
+            int id = std::stoi(key);
+            if (std::find(replan_agents.begin(), replan_agents.end(), id) == replan_agents.end()) {
+                for (const auto &pair: value) {
+                    int row = static_cast<int>(pair[0]);
+                    int col = static_cast<int>(pair[1]);
+                    auto loc = instance.num_of_cols * row + col;
+                    path.emplace_back(PathEntry(loc));
+                }
+                path_table.insertPath(agent_id, path);
+                planned_paths.emplace_back(path);
+                agent_id += 1;
+            }
+            else{ // NOTE can be del
+                init_replan_cost = init_replan_cost + value.size() - 1;
+                agent_ori_id.push_back(id);
+//                cout << "agent " << id << " ";
+//                int t = 0;
+//                for (const auto &pair: value) {
+//                    int row = static_cast<int>(pair[0]);
+//                    int col = static_cast<int>(pair[1]);
+//                    auto loc = instance.num_of_cols * row + col;
+//                    cout << "(" << t << "," << loc << ")" << " --> ";
+//                    t += 1;
+//                }
+//                cout << endl;
+            }
+
+        }
+//        cout << "Initial State End" << endl; // NOTE can be del
+        cout << "load initial state from " << state_json << endl;
+        cout << "init_replan_cost: " << init_replan_cost << endl;
+    }
+//    cout << "Initial State End" << endl;
+    cout << "start_time : " << ((fsec)(Time::now() - start_time)).count() << endl;
+
     this->time_limit = _time_limit;
 
-    if (screen > 0) // 1 or 2
-    {
-        string name = getSolverName();
-        name.resize(35, ' ');
-        cout << name << ": ";
-    }
+//    if (screen > 0) // 1 or 2
+//    {
+//        string name = getSolverName();
+//        name.resize(35, ' ');
+//        cout << name << ": " << endl;
+//    }
     // set timer
     start = clock();
-
+    auto pbs_start_time = Time::now();
     generateRoot();
 
     while (!open_list.empty())
@@ -58,14 +112,37 @@ bool PBS::solve(double _time_limit)
         assert(!hasHigherPriority(curr->conflict->a1, curr->conflict->a2) and
                !hasHigherPriority(curr->conflict->a2, curr->conflict->a1) );
         auto t1 = clock();
-        vector<Path*> copy(paths);
+        vector<Path*> copy(paths); // NOTE here should copy the contraint table 
         generateChild(0, curr, curr->conflict->a1, curr->conflict->a2);
-        paths = copy;
+        paths = copy; // NOTE here should copy the contraint table
         generateChild(1, curr, curr->conflict->a2, curr->conflict->a1);
         runtime_generate_child += (double)(clock() - t1) / CLOCKS_PER_SEC;
         pushNodes(curr->children[0], curr->children[1]);
         curr->clear();
     }  // end of while loop
+    bool improved = (solution_cost < init_replan_cost) and (solution_cost > 0);
+    cout << "replan_time: " << ((fsec)(Time::now() - pbs_start_time)).count() << endl;
+    cout << "Improvement: " << init_replan_cost - solution_cost << endl;
+    cout << "init_replan_cost: " << init_replan_cost << endl;
+    cout << "pbs_replan_cost: " << solution_cost << endl;
+    if (improved){
+        // cout << "Improved : " << init_replan_cost - solution_cost << endl;
+        cout << "new paths start" << endl;
+        for (int a1 = 0; a1 < num_of_agents; a1++)
+        {
+            cout << "agent " << agent_ori_id[a1] << " ";
+            int t = 0;
+            for (auto loc : *paths[a1]){
+                auto coord = instance.getCoordinate(loc.location);
+                cout << "(" << coord.first << "," << coord.second << ")" << " --> ";
+                t += 1;
+            }
+            cout << endl;
+        }
+        cout << "new paths end" << endl;
+    }
+
+
     return solution_found;
 }
 
@@ -216,7 +293,23 @@ bool PBS::generateChild(int child_id, PBSNode* parent, int low, int high)
 bool PBS::findPathForSingleAgent(PBSNode& node, const set<int>& higher_agents, int a, Path& new_path)
 {
     clock_t t = clock();
-    new_path = search_engines[a]->findOptimalPath(higher_agents, paths, a);  //TODO: add runtime check to the low level
+    // NOTE here chagne to the single agent path planner
+//     for (int id : higher_agents)
+//     {
+// //        cout << "inseart : " << id  << " (" << paths[id]->size() << ") " ; // TODO del
+//         path_table.insertPath(id, *paths[id]);
+//     }
+//    cout << endl; // TODO del
+//    cout << "replan agent " << a << endl; // TODO ddel
+//    new_path = search_engines[a]->findOptimalPath(path_table);
+//     for (int id : higher_agents)
+//     {
+// //        cout << "delete : " << id  << " (" << paths[id]->size() << ") " ; // TODO del
+//         path_table.deletePath(id, *paths[id]);
+//     }
+//    cout << endl; // TODO del
+    // new_path = search_engines[a]->findOptimalPath(higher_agents, paths, a, path_table);  //TODO: add runtime check to the low level
+    new_path = search_engines[a]->findOptimalPath(higher_agents, paths, a, planned_paths);  //TODO: add runtime check to the low level
     num_LL_expanded += search_engines[a]->num_expanded;
     num_LL_generated += search_engines[a]->num_generated;
     runtime_build_CT += search_engines[a]->runtime_build_CT;
@@ -300,8 +393,11 @@ bool PBS::hasConflicts(int a1, const set<int>& agents) const
 {
     for (auto a2 : agents)
     {
-        if (hasConflicts(a1, a2))
+        if (hasConflicts(a1, a2)){
+            cout << "a1 " << a1 << " a2 " << a2 << endl; // TODO del
             return true;
+        }
+
     }
     return false;
 }
@@ -566,7 +662,7 @@ void PBS::printConflicts(const PBSNode &curr)
 
 string PBS::getSolverName() const
 {
-	return "PBS with " + search_engines[0]->getName();
+	return "PBS with " + search_engines[0]->getName() ;
 }
 
 
@@ -584,16 +680,19 @@ bool PBS::terminate(PBSNode* curr)
 			printPaths();
 			exit(-1);
 		}
-		if (screen > 0) // 1 or 2
-			printResults();
+        else{
+            cout << "valid solution : D " << endl;
+        }
+//		if (screen > 0) // 1 or 2
+//			printResults();
 		return true;
 	}
 	if (runtime > time_limit || num_HL_expanded > node_limit)
 	{   // time/node out
 		solution_cost = -1;
 		solution_found = false;
-        if (screen > 0) // 1 or 2
-            printResults();
+//        if (screen > 0) // 1 or 2
+//            printResults();
 		return true;
 	}
 	return false;
@@ -611,9 +710,19 @@ bool PBS::generateRoot()
     {
         //CAT cat(dummy_start->makespan + 1);  // initialized to false
         //updateReservationTable(cat, i, *dummy_start);
-        auto new_path = search_engines[i]->findOptimalPath(higher_agents, paths, i);
-        num_LL_expanded += search_engines[i]->num_expanded;
-        num_LL_generated += search_engines[i]->num_generated;
+        // for (int id : higher_agents)
+        // {
+        //     path_table.insertPath(id, *paths[id]);
+        // }
+//        auto new_path = search_engines[i]->findOptimalPath(path_table);
+        // for (int id : higher_agents)
+        // {
+        //     path_table.deletePath(id, *paths[id]);
+        // }
+//        auto new_path = search_engines[i]->findOptimalPath(higher_agents, paths, i); // NOTE : directly call the A* in LNS
+        auto new_path = search_engines[i]->findOptimalPath(higher_agents, paths, i, planned_paths);
+        num_LL_expanded += search_engines[i]->num_expanded; // NOTE : directly call the A* in LNS
+        num_LL_generated += search_engines[i]->num_generated; // NOTE : directly call the A* in LNS
         if (new_path.empty())
         {
             cout << "No path exists for agent " << i << endl;
@@ -672,6 +781,8 @@ inline void PBS::releaseNodes()
 }*/
 
 PBS::~PBS()
+
+
 {
 	releaseNodes();
 }
@@ -686,40 +797,78 @@ void PBS::clearSearchEngines()
 
 bool PBS::validateSolution() const
 {
-	// check whether the paths are feasible
+    int agent_num = num_of_agents;
+    vector<Path*> all_agent_paths;
+    if (state_json != ""){
+        using json = nlohmann::json;
+        std::ifstream f(state_json);
+        json data = json::parse(f);
+        all_agent_paths.reserve(data.size());
+//        planned_paths.reserve(data.size());
+
+        for (int a1 = 0; a1 < num_of_agents; a1++)
+        {
+            all_agent_paths[a1] = paths[a1];
+        }
+        int agent_id = replan_agents.size();
+        for (auto & [key, value] : data.items()){
+
+            int id = std::stoi(key);
+
+            if (std::find(replan_agents.begin(), replan_agents.end(), id) == replan_agents.end()) {
+                auto path = new vector<PathEntry>;
+                path->reserve(value.size());
+                for (const auto &pair: value) {
+                    int row = static_cast<int>(pair[0]);
+                    int col = static_cast<int>(pair[1]);
+                    auto loc = instance.num_of_cols * row + col;
+                    path->emplace_back(loc);
+                }
+                all_agent_paths[agent_id] = path;
+//                planned_paths[agent_id] = path;
+//                planned_paths.emplace_back(&path);
+                agent_id += 1;
+                agent_num += 1;
+            }
+        }
+    }
+
+
+
+    // check whether the paths are feasible
 	size_t soc = 0;
-	for (int a1 = 0; a1 < num_of_agents; a1++)
+	for (int a1 = 0; a1 < agent_num; a1++)
 	{
-		soc += paths[a1]->size() - 1;
-		for (int a2 = a1 + 1; a2 < num_of_agents; a2++)
+		soc += all_agent_paths[a1]->size() - 1;
+		for (int a2 = a1 + 1; a2 < agent_num; a2++)
 		{
-			size_t min_path_length = paths[a1]->size() < paths[a2]->size() ? paths[a1]->size() : paths[a2]->size();
+			size_t min_path_length = all_agent_paths[a1]->size() < all_agent_paths[a2]->size() ? all_agent_paths[a1]->size() : all_agent_paths[a2]->size();
 			for (size_t timestep = 0; timestep < min_path_length; timestep++)
 			{
-				int loc1 = paths[a1]->at(timestep).location;
-				int loc2 = paths[a2]->at(timestep).location;
+				int loc1 = all_agent_paths[a1]->at(timestep).location;
+				int loc2 = all_agent_paths[a2]->at(timestep).location;
 				if (loc1 == loc2)
 				{
 					cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
 					return false;
 				}
 				else if (timestep < min_path_length - 1
-					&& loc1 == paths[a2]->at(timestep + 1).location
-					&& loc2 == paths[a1]->at(timestep + 1).location)
+					&& loc1 == all_agent_paths[a2]->at(timestep + 1).location
+					&& loc2 == all_agent_paths[a1]->at(timestep + 1).location)
 				{
 					cout << "Agents " << a1 << " and " << a2 << " collides at (" <<
 						loc1 << "-->" << loc2 << ") at timestep " << timestep << endl;
 					return false;
 				}
 			}
-			if (paths[a1]->size() != paths[a2]->size())
+			if (all_agent_paths[a1]->size() != all_agent_paths[a2]->size())
 			{
-				int a1_ = paths[a1]->size() < paths[a2]->size() ? a1 : a2;
-				int a2_ = paths[a1]->size() < paths[a2]->size() ? a2 : a1;
-				int loc1 = paths[a1_]->back().location;
-				for (size_t timestep = min_path_length; timestep < paths[a2_]->size(); timestep++)
+				int a1_ = all_agent_paths[a1]->size() < all_agent_paths[a2]->size() ? a1 : a2;
+				int a2_ = all_agent_paths[a1]->size() < all_agent_paths[a2]->size() ? a2 : a1;
+				int loc1 = all_agent_paths[a1_]->back().location;
+				for (size_t timestep = min_path_length; timestep < all_agent_paths[a2_]->size(); timestep++)
 				{
-					int loc2 = paths[a2_]->at(timestep).location;
+					int loc2 = all_agent_paths[a2_]->at(timestep).location;
 					if (loc1 == loc2)
 					{
 						cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
@@ -729,11 +878,11 @@ bool PBS::validateSolution() const
 			}
 		}
 	}
-	if ((int)soc != solution_cost)
-	{
-		cout << "The solution cost is wrong!" << endl;
-		return false;
-	}
+//	if ((int)soc != solution_cost)
+//	{
+//		cout << "The solution cost is wrong!" << endl;
+//		return false;
+//	}
 	return true;
 }
 

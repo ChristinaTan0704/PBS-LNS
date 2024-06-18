@@ -136,13 +136,24 @@ list<pair<int, int> > ConstraintTable::decodeBarrier(int x, int y, int t) const
 
 bool ConstraintTable::constrained(size_t loc, int t) const
 {
-    assert(loc >= 0);
-    if (loc < map_size)
-    {
-        const auto& it = landmarks.find(t);
-        if (it != landmarks.end() && it->second != loc)
-            return true;  // violate the positive vertex constraint
-    }
+
+//    assert(loc >= 0);
+//	if (loc < map_size)
+//	{
+//	    if (path_table.constrained(loc, loc, t))
+//	        return true;
+//		const auto& it = landmarks.find(t);
+//		if (it != landmarks.end() && it->second != loc)
+//			return true;  // violate the positive vertex constraint
+//	}
+
+     assert(loc >= 0);
+     if (loc < map_size)
+     {
+         const auto& it = landmarks.find(t);
+         if (it != landmarks.end() && it->second != loc)
+             return true;  // violate the positive vertex constraint
+     }
 
     const auto& it = ct.find(loc);
     if (it == ct.end())
@@ -158,7 +169,8 @@ bool ConstraintTable::constrained(size_t loc, int t) const
 }
 bool ConstraintTable::constrained(size_t curr_loc, size_t next_loc, int next_t) const
 {
-    return constrained(getEdgeIndex(curr_loc, next_loc), next_t);
+     return constrained(getEdgeIndex(curr_loc, next_loc), next_t);
+//    return path_table.constrained(curr_loc, next_loc, next_t) || constrained(getEdgeIndex(curr_loc, next_loc), next_t);
 }
 
 void ConstraintTable::copy(const ConstraintTable& other)
@@ -228,6 +240,16 @@ int ConstraintTable::getFutureNumOfCollisions(int loc, int t) const
 // return the earliest timestep that the agent can hold the location
 int ConstraintTable::getHoldingTime(int location, int earliest_timestep) const
 {
+
+//    int rst = earliest_timestep;
+//    if (!path_table.table.empty() &&
+//        (int) path_table.table[location].size() > length_min)
+//    {
+//        rst = (int) path_table.table[location].size();
+//        while (rst > length_min && path_table.table[location][rst - 1] == NO_AGENT)
+//            rst--;
+//    }
+
     int rst = earliest_timestep;
     // CT
     auto it = ct.find(location);
