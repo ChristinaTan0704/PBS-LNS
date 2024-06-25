@@ -8,7 +8,6 @@ void PathTable::insertPath(int agent_id, const Path& path)
     {
         if (table[path[t].location].size() <= t)
             table[path[t].location].resize(t + 1, NO_AGENT);
-        // assert(table[path[t].location][t] == NO_AGENT);
         table[path[t].location][t] = agent_id;
     }
     goals[path.back().location] = (int) path.size() - 1;
@@ -24,7 +23,6 @@ void PathTable::deletePath(int agent_id, const Path& path)
         if (table[path[t].location].size() <= t or table[path[t].location][t] != agent_id){
             continue;
         }
-//        cout << "agent_id " << agent_id << " path.size() " << path.size() << " table[path[t].location].size() " << table[path[t].location].size()  << " agent_id " << agent_id << " t " << t << " table[path[t].location][t]  " << table[path[t].location][t]  << endl; // TODO del
        assert(table[path[t].location].size() > t && table[path[t].location][t] == agent_id);
         table[path[t].location][t] = NO_AGENT;
         goals[path.back().location] = MAX_COST;
@@ -66,15 +64,12 @@ void PathTable::getConflictingAgents(int agent_id, set<int>& conflicting_agents,
     if (table[to].size() > to_time && table[to][to_time] != NO_AGENT)
         {
             conflicting_agents.insert(table[to][to_time]); // vertex conflict
-//            cout << table[to][to_time] << " ";
         }
     if (table[to].size() >= to_time && table[from].size() > to_time &&
         table[to][to_time - 1] != NO_AGENT && table[from][to_time] == table[to][to_time - 1])
         {
             conflicting_agents.insert(table[from][to_time]); // edge conflict
-//            cout << table[to][to_time] << " ";
         }
-    // TODO: collect target conflicts as well.
 }
 
 void PathTable::get_agents(set<int>& conflicting_agents, int loc) const

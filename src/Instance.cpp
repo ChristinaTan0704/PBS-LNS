@@ -7,9 +7,9 @@
 
 int RANDOM_WALK_STEPS = 100000;
 
-Instance::Instance(const string& map_fname, const string& agent_fname, const string& state_json, const vector<int> replan_agents,
+Instance::Instance(const string& map_fname, const string& state_json, const vector<int> replan_agents,
 	int num_of_agents, int num_of_rows, int num_of_cols, int num_of_obstacles, int warehouse_width):
-	map_fname(map_fname), agent_fname(agent_fname), num_of_agents(num_of_agents), state_json(state_json), replan_agents(replan_agents)
+	map_fname(map_fname), num_of_agents(num_of_agents), state_json(state_json), replan_agents(replan_agents)
 {
 	bool succ = loadMap();
 	if (!succ)
@@ -27,43 +27,23 @@ Instance::Instance(const string& map_fname, const string& agent_fname, const str
 		}
 	}
 
-    if (state_json == ""){
-        succ = loadAgents();
-        if (!succ)
-        {
-            if (num_of_agents > 0)
-            {
-                generateRandomAgents(warehouse_width);
-                // saveAgents();
-                // saveNathan();
-            }
-            else
-            {
-                cerr << "Agent file " << agent_fname << " not found." << endl;
-                exit(-1);
-            }
-        }
-    }
-    else{
-        using json = nlohmann::json;
-        std::ifstream f(state_json);
-        json data = json::parse(f);
-        start_locations.resize(replan_agents.size());
-        goal_locations.resize(replan_agents.size());
-        int replan_id = 0;
-        for (auto & [key, value] : data.items()){
-            Path path;
-            int id = std::stoi(key);
-            if (std::find(replan_agents.begin(), replan_agents.end(), id) != replan_agents.end()){
-                start_locations[replan_id] = linearizeCoordinate(value.front()[0], value.front()[1]); // row col
-                goal_locations[replan_id] = linearizeCoordinate(value.back()[0], value.back()[1]);
-                replan_id += 1;
-            }
-        }
-        cout << "init instance based on " << state_json << endl;
-    }
-
-
+	// load agents from input JSON file
+	using json = nlohmann::json;
+	std::ifstream f(state_json);
+	json data = json::parse(f);
+	start_locations.resize(replan_agents.size());
+	goal_locations.resize(replan_agents.size());
+	int replan_id = 0;
+	for (auto & [key, value] : data.items()){
+		Path path;
+		int id = std::stoi(key);
+		if (std::find(replan_agents.begin(), replan_agents.end(), id) != replan_agents.end()){
+			start_locations[replan_id] = linearizeCoordinate(value.front()[0], value.front()[1]); // row col
+			goal_locations[replan_id] = linearizeCoordinate(value.back()[0], value.back()[1]);
+			replan_id += 1;
+		}
+	}
+	cout << "init instance based on " << state_json << endl;
 
 }
 
@@ -113,9 +93,9 @@ void Instance::generateRandomAgents(int warehouse_width)
 
 			// find goal
 			bool flag = false;
-			int goal = rand() % map_size; // randomWalk(start, RANDOM_WALK_STEPS);
+			int goal = rand() % map_size; 
 			while (my_map[goal] || goals[goal])
-				goal = rand() % map_size; // randomWalk(goal, 1);
+				goal = rand() % map_size; 
 
 			//update goal
 			goal_locations[k] = goal;
@@ -234,12 +214,6 @@ void Instance::generateConnectedRandomGrid(int rows, int cols, int obstacles)
 	num_of_cols = cols + 2;
 	map_size = num_of_rows * num_of_cols;
 	my_map.resize(map_size, false);
-	// Possible moves [WAIT, NORTH, EAST, SOUTH, WEST]
-	/*moves_offset[Instance::valid_moves_t::WAIT_MOVE] = 0;
-	moves_offset[Instance::valid_moves_t::NORTH] = -num_of_cols;
-	moves_offset[Instance::valid_moves_t::EAST] = 1;
-	moves_offset[Instance::valid_moves_t::SOUTH] = num_of_cols;
-	moves_offset[Instance::valid_moves_t::WEST] = -1;*/
 
 	// add padding
 	i = 0;
@@ -312,13 +286,6 @@ bool Instance::loadMap()
 		}
 	}
 	myfile.close();
-
-	// initialize moves_offset array
-	/*moves_offset[Instance::valid_moves_t::WAIT_MOVE] = 0;
-	moves_offset[Instance::valid_moves_t::NORTH] = -num_of_cols;
-	moves_offset[Instance::valid_moves_t::EAST] = 1;
-	moves_offset[Instance::valid_moves_t::SOUTH] = num_of_cols;
-	moves_offset[Instance::valid_moves_t::WEST] = -1;*/
 	return true;
 }
 
@@ -364,82 +331,6 @@ void Instance::saveMap() const
 }
 
 
-bool Instance::loadAgents()
-{
-	using namespace std;
-	using namespace boost;
-
-	string line;
-	ifstream myfile (agent_fname.c_str());
-	if (!myfile.is_open()) 
-	return false;
-
-	getline(myfile, line);
-	if (line[0] == 'v') // Nathan's benchmark
-	{
-		if (num_of_agents == 0)
-		{
-			cerr << "The number of agents should be larger than 0" << endl;
-			exit(-1);
-		}
-		start_locations.resize(num_of_agents);
-		goal_locations.resize(num_of_agents);
-		char_separator<char> sep("\t");
-		for (int i = 0; i < num_of_agents; i++)
-		{
-			getline(myfile, line);
-			tokenizer< char_separator<char> > tok(line, sep);
-			tokenizer< char_separator<char> >::iterator beg = tok.begin();
-			beg++; // skip the first number
-			beg++; // skip the map name
-			beg++; // skip the columns
-			beg++; // skip the rows
-				   // read start [row,col] for agent i
-			int col = atoi((*beg).c_str());
-			beg++;
-			int row = atoi((*beg).c_str());
-			start_locations[i] = linearizeCoordinate(row, col);
-			// read goal [row,col] for agent i
-			beg++;
-			col = atoi((*beg).c_str());
-			beg++;
-			row = atoi((*beg).c_str());
-			goal_locations[i] = linearizeCoordinate(row, col);
-		}
-	}
-	else // My benchmark
-	{
-		char_separator<char> sep(",");
-		tokenizer< char_separator<char> > tok(line, sep);
-		tokenizer< char_separator<char> >::iterator beg = tok.begin();
-		num_of_agents = atoi((*beg).c_str());
-		start_locations.resize(num_of_agents);
-		goal_locations.resize(num_of_agents);
-		for (int i = 0; i<num_of_agents; i++)
-		{
-			getline(myfile, line);
-			tokenizer< char_separator<char> > col_tok(line, sep);
-			tokenizer< char_separator<char> >::iterator c_beg = col_tok.begin();
-			pair<int, int> curr_pair;
-			// read start [row,col] for agent i
-			int row = atoi((*c_beg).c_str());
-			c_beg++;
-			int col = atoi((*c_beg).c_str());
-			start_locations[i] = linearizeCoordinate(row, col);
-			// read goal [row,col] for agent i
-			c_beg++;
-			row = atoi((*c_beg).c_str());
-			c_beg++;
-			col = atoi((*c_beg).c_str());
-			goal_locations[i] = linearizeCoordinate(row, col);
-		}
-	}
-	myfile.close();
-	return true;
-
-}
-
-
 void Instance::printAgents() const
 {
   for (int i = 0; i < num_of_agents; i++) 
@@ -450,21 +341,6 @@ void Instance::printAgents() const
 }
 
 
-void Instance::saveAgents() const
-{
-  ofstream myfile;
-  myfile.open(agent_fname);
-  if (!myfile.is_open())
-  {
-	  cout << "Fail to save the agents to " << agent_fname << endl;
-	  return;
-  }
-  myfile << num_of_agents << endl;
-  for (int i = 0; i < num_of_agents; i++)
-    myfile << getRowCoordinate(start_locations[i]) << "," << getColCoordinate(start_locations[i]) << ","
-           << getRowCoordinate(goal_locations[i]) << "," << getColCoordinate(goal_locations[i]) << "," << endl;
-  myfile.close();
-}
 
 
 list<int> Instance::getNeighbors(int curr) const

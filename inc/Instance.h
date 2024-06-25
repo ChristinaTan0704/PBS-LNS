@@ -15,7 +15,7 @@ public:
 	// enum valid_moves_t { NORTH, EAST, SOUTH, WEST, WAIT_MOVE, MOVE_COUNT };  // MOVE_COUNT is the enum's size
 
 	Instance(){}
-	Instance(const string& map_fname, const string& agent_fname, const string& state_json = "", const vector<int> replan_agents={},
+	Instance(const string& map_fname, const string& state_json = "", const vector<int> replan_agents={},
 		int num_of_agents = 0, int num_of_rows = 0, int num_of_cols = 0, int num_of_obstacles = 0, int warehouse_width = 0);
 
 
@@ -68,7 +68,6 @@ private:
 	  // int moves_offset[MOVE_COUNT];
 	  vector<bool> my_map;
 	  string map_fname;
-	  string agent_fname;
 
 	  int num_of_agents;
 	  vector<int> start_locations;

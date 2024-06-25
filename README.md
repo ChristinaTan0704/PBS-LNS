@@ -1,17 +1,10 @@
-# PBS
-![test_ubuntu](https://github.com/Jiaoyang-Li/PBS/actions/workflows/test_ubuntu.yml/badge.svg)
-![test_macos](https://github.com/Jiaoyang-Li/PBS/actions/workflows/test_macos.yml/badge.svg)
+# PBS for LNS Replan
 
-A suboptimal solver for Multi-Agent Path Finding
 
-Priority-Based Search (PBS) is an efficient suboptimal algorithm for solving Multi-Agent Path Finding (MAPF).
-More details can be found in our paper at AAAI 2019 [1]. 
-(This implementation is not the original code for producing the results in the paper.)
+This project is based on the [PBS official implementaion](https://github.com/Jiaoyang-Li/PBS) and allows users to replan paths for specified agents using Priority-Based Search (PBS). The input to the executable is a JSON file containing the complete feasible solution and a list of agents to replan. The algorithm maintains the paths of the remaining agents unchanged, treating them as space-time obstacles, and only replans the paths for the agents in the removal set using the PBS algorithm.
 
-The implementation provides a SIPP option that uses SIPPS [2] (instead of state-time A*) 
-in the low level of PBS to plan paths for agents.
 
-## Usage
+## Installation 
 The code requires the external library [boost](https://www.boost.org/).
 If you are using Ubantu, you can install it simply by
 ```shell script
@@ -34,30 +27,29 @@ cmake -DCMAKE_BUILD_TYPE=RELEASE .
 make
 ```
 
-Then, you are able to run the code:
-```
-./pbs -m random-32-32-20.map -a random-32-32-20-random-1.scen -o test.csv --outputPaths=paths.txt -k 50 -t 60
+## Usage
+
+
+
+```shell
+./pbs-replan \
+--map random-32-32-20.map \
+--state map-random-32-32-20-scene-1-agent-150.json \
+--agentNum 150 \
+--replanAgents 3 25 62 117 134 
 ```
 
-- m: the map file from the MAPF benchmark
-- a: the scenario file from the MAPF benchmark
-- o: the output file that contains the search statistics
-- outputPaths: the output file that contains the paths 
-- k: the number of agents
-- t: the runtime limit
+- map (required): the .map file downloaded from the MAPF benchmark
+- state (required): path to the current state JSON file, key: agent id, value: list of agent location in 2D x, y coordinate, check [map-random-32-32-20-scene-1-agent-150.json](map-random-32-32-20-scene-1-agent-150.json) as an example
+- agentNum (required): number of agents in the current map
+- replanAgents (required): list of agents to replan
+- cutoffTime (optional): run time limit for running the removal and replan of LNS
 
 You can find more details and explanations for all parameters with:
 ```
-./pbs --help
+./pbs-replan --help
 ```
-
-To test the code on more instances,
-you can download the MAPF instances from the [MAPF benchmark](https://movingai.com/benchmarks/mapf/index.html).
-In particular, the format of the scen files is explained [here](https://movingai.com/benchmarks/formats.html).
-For a given number of agents k, the first k rows of the scen file are used to generate the k pairs of start and target locations.
-
-## License
-PBS is released under USC – Research License. See license.md for further details.
+If the cost of replanned paths improves (improvement > 0), the program will output the newly planned paths for the replanned agents.
  
 ## References
 [1] Hang Ma, Daniel Harabor, Peter J. Stuckey, Jiaoyahng Li and S. Koenig. 
@@ -67,3 +59,26 @@ In Proceedings of the AAAI Conference on Artificial Intelligence (AAAI), 7643-76
 [2] Jiaoyang Li, Zhe Chen, Daniel Harabor, Peter J. Stuckey and Sven Koenig.
 MAPF-LNS2: Fast Repairing for Multi-Agent Path Finding via Large Neighborhood Search.
 In Proceedings of the AAAI Conference on Artificial Intelligence, (in print), 2022.
+
+
+
+<!-- 
+python script/ml_implementation_new.py \
+--option 6 \
+--nns_collect_data \
+--initial_state data/nns_random_scene/val_init_state_json/map-Paris_1_256-scene-10000-agent-550.json \
+--output_folder data/uncheck_nns_val_suggested_data/training_data/Paris_1_256 \
+--pbs_replan_exe pre_work/baseline/PBS/pbs \
+--map_folder pre_work/baseline/MAPF-LNS/map \
+--log_path data/uncheck_nns_val_suggested_data/log/map-Paris_1_256-scene-10000-agent-550-method-PBSRandomWalkLarge-nb-25.log \
+--gen_subset_exe pre_work/baseline/RR_V2/rrv2 \
+--destroyStrategy  RandomWalkLarge \
+--neighborSize 25 \
+--num_subset 100 \
+--infer_time 1 \
+--num_cores 8 \
+--max_iter 50  \
+--uniformNB 0
+
+
+pre_work/baseline/PBS/pbs --map pre_work/baseline/MAPF-LNS/map/ost003d.map --agentNum 400 --state waste/nns_infer_debug/ost003d/nns_running_state_temp/2024-06-25_11-22-40/map-ost003d-scene-10-agent-400-state.json --cutoffTime 20 --replanAgents 62 117 134 163 168 182 208 209 249 344  -->
