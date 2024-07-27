@@ -270,7 +270,16 @@ bool PBS::generateChild(int child_id, PBSNode* parent, int low, int high)
 bool PBS::findPathForSingleAgent(PBSNode& node, const set<int>& higher_agents, int a, Path& new_path)
 {
     clock_t t = clock();
-    new_path = search_engines[a]->findOptimalPath(higher_agents, paths, a, planned_paths); 
+    //  TODO update here (maybe exclue the initialize time)
+    for (auto one_agent : higher_agents)
+    {
+        path_table.insertPath(one_agent, planned_paths[one_agent]);
+    }
+    new_path = search_engines[a]->findOptimalPath(path_table); 
+    paths[a] = &new_path;   
+    path_table.reset();
+
+    // new_path = search_engines[a]->findOptimalPath(higher_agents, paths, a, planned_paths); 
     num_LL_expanded += search_engines[a]->num_expanded;
     num_LL_generated += search_engines[a]->num_generated;
     runtime_build_CT += search_engines[a]->runtime_build_CT;
@@ -630,7 +639,16 @@ bool PBS::generateRoot()
     set<int> higher_agents;
     for (auto i = 0; i < num_of_agents; i++)
     {
-        auto new_path = search_engines[i]->findOptimalPath(higher_agents, paths, i, planned_paths);
+        //  TODO update here
+        for (auto one_agent : higher_agents)
+        {
+            path_table.insertPath(one_agent, planned_paths[one_agent]);
+        }
+        auto new_path = search_engines[i]->findOptimalPath(path_table); 
+        paths[i] = &new_path;   
+        path_table.reset();
+
+        // auto new_path = search_engines[i]->findOptimalPath(higher_agents, paths, i, planned_paths);
         num_LL_expanded += search_engines[i]->num_expanded; 
         num_LL_generated += search_engines[i]->num_generated; 
         if (new_path.empty())

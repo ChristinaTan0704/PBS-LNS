@@ -53,9 +53,8 @@ public:
 	// Returns a shortest path that satisfies the constraints of the give node  while
 	// minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 	// lowerbound is an underestimation of the length of the path in order to speed up the search.
-//    Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent, const PathTable& path_table) override;
-   Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent, const vector<Path>& planned_paths) override;
-    // Path findOptimalPath(const PathTable& path_table) override;
+//    Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent, const vector<Path>& planned_paths) override;
+   	Path findOptimalPath(const PathTable& path_table, double replan_time_limit);
 	string getName() const override { return "AStar"; }
 
 	SpaceTimeAStar(const Instance& instance, int agent):

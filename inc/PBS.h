@@ -56,6 +56,9 @@ public:
 	void saveCT(const string &fileName) const; // write the CT to a file
     void savePaths(const string &fileName) const; // write the paths to a file
 	void clear(); // used for rapid random  restart
+
+	PathTable path_table; // 1. stores the paths of all agents in a time-space table;
+
 private:
     const Instance& instance; // avoid making copies of this variable as much as possible
 	conflict_selection conflict_seletion_rule;
