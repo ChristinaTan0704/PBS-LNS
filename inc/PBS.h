@@ -7,7 +7,6 @@ class PBS
 {
 public:
 	vector<Path> planned_paths;
-    PathTable path_table; // 1. stores the paths of all agents in a time-space table;
     string state_json = "";
     vector<int> replan_agents; // used by randomwalk strategy
     vector<int> agent_ori_id;

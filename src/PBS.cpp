@@ -2,6 +2,7 @@
 #include <random>      // std::default_random_engine
 #include <chrono>       // std::chrono::system_clock
 #include "PBS.h"
+#include "SpaceTimeAStar.h"
 //#include "SIPP.h"
 #include "SpaceTimeAStar.h"
 #include <nlohmann/json.hpp>
@@ -644,7 +645,7 @@ bool PBS::generateRoot()
         {
             path_table.insertPath(one_agent, planned_paths[one_agent]);
         }
-        auto new_path = search_engines[i]->findOptimalPath(path_table); 
+        auto new_path = search_engines[i]->findOptimalPath(path_table);
         paths[i] = &new_path;   
         path_table.reset();
 
