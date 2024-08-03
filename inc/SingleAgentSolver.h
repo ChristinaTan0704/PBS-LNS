@@ -97,8 +97,10 @@ public:
 	}
 	const Instance& instance;
 
-	virtual Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent, const vector<Path>& planned_paths) = 0;
-    // virtual Path findOptimalPath(const PathTable& path_table) = 0;
+	// virtual Path findOptimalPath(const set<int>& higher_agents, const vector<Path*>& paths, int agent, const vector<Path>& planned_paths) = 0;
+	virtual Path findOptimalPath(const PathTable& path_table, double replan_time_limit) = 0;
+	// virtual Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
+		// const vector<Path*>& paths, int agent, int lower_bound) = 0;
 	virtual string getName() const = 0;
 
 	list<int> getNextLocations(int curr) const; // including itself and its neighbors

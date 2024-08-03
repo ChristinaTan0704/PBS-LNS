@@ -270,7 +270,25 @@ bool PBS::generateChild(int child_id, PBSNode* parent, int low, int high)
 bool PBS::findPathForSingleAgent(PBSNode& node, const set<int>& higher_agents, int a, Path& new_path)
 {
     clock_t t = clock();
-    new_path = search_engines[a]->findOptimalPath(higher_agents, paths, a, planned_paths); 
+    // TODO get a copy of path_table
+    PathTable single_path_table = path_table;
+    for (auto & a : higher_agents){
+        single_path_table.insertPath(a, *paths[a]);
+//        cout << "higher agent " << a << endl;
+//        for (auto & loc : planned_paths[a]){
+//            cout << loc.location << " --> " ;
+//        }
+//        cout << endl;
+    }
+    new_path = search_engines[a]->findOptimalPath(single_path_table, 0.6);
+//    cout << "NEW agent " << a << endl;
+//    for (auto & loc : new_path){
+//        cout << loc.location << " --> " ;
+//    }
+//    cout << endl;
+    single_path_table.reset();
+    
+    // new_path = search_engines[a]->findOptimalPath(higher_agents, paths, a, planned_paths); 
     num_LL_expanded += search_engines[a]->num_expanded;
     num_LL_generated += search_engines[a]->num_generated;
     runtime_build_CT += search_engines[a]->runtime_build_CT;
@@ -297,6 +315,7 @@ bool PBS::findPathForSingleAgent(PBSNode& node, const set<int>& higher_agents, i
     }
     node.paths.emplace_back(a, new_path);
     paths[a] = &node.paths.back().second;
+
     assert(!hasConflicts(a, higher_agents));
     return true;
 }
@@ -331,6 +350,7 @@ bool PBS::hasConflicts(int a1, int a2) const
 		if (loc1 == loc2 or (timestep < min_path_length - 1 and loc1 == paths[a2]->at(timestep + 1).location
                              and loc2 == paths[a1]->at(timestep + 1).location)) // vertex or edge conflict
 		{
+//            cout << "conflict " << a1 << " " << a2 << " " << loc1 << " " << loc2 << endl;
             return true;
 		}
 	}
@@ -344,6 +364,7 @@ bool PBS::hasConflicts(int a1, int a2) const
 			int loc2 = paths[a2_]->at(timestep).location;
 			if (loc1 == loc2)
 			{
+//                cout << "conflict " << a1 << " " << a2 << " " << loc1 << " " << loc2 << endl;
 				return true; // target conflict
 			}
 		}
@@ -629,8 +650,26 @@ bool PBS::generateRoot()
 
     set<int> higher_agents;
     for (auto i = 0; i < num_of_agents; i++)
-    {
-        auto new_path = search_engines[i]->findOptimalPath(higher_agents, paths, i, planned_paths);
+    {   
+        // TODO update later 
+        PathTable single_path_table = path_table;
+        for (auto & a : higher_agents){
+            single_path_table.insertPath(a, planned_paths[a]);
+//            cout << "higher agent " << a << endl;
+//            for (auto & loc : planned_paths[a]){
+//                cout << loc.location << " --> " ;
+//            }
+//            cout << endl;
+        }
+        auto new_path =  search_engines[i]->findOptimalPath(single_path_table, 0.6);
+
+//        cout << "NEW agent " << i << endl;
+//        for (auto & loc : new_path){
+//            cout << loc.location << " --> " ;
+//        }
+        cout << endl;
+        single_path_table.reset();
+        // auto new_path = search_engines[i]->findOptimalPath(higher_agents, paths, i, planned_paths);
         num_LL_expanded += search_engines[i]->num_expanded; 
         num_LL_generated += search_engines[i]->num_generated; 
         if (new_path.empty())
